@@ -41,7 +41,7 @@ This project uses the CoinGecko API. You'll need a free API key:
 cp .env.local.example .env.local
 
 # Edit .env.local and add your API key
-NEXT_PUBLIC_COINGECKO_API_KEY=your_api_key_here
+COINGECKO_API_KEY=your_api_key_here
 ```
 
 ### 3. Installation

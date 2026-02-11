@@ -17,17 +17,22 @@ import { TrendingUp, TrendingDown, RefreshCw, Search, ArrowUpDown, DollarSign, A
 import { format } from 'date-fns'
 // import axios from 'axios'
 
-export default function Home() {
-  const API_KEY = process.env.NEXT_PUBLIC_COINGECKO_API_KEY || 'demo-key'
-  const API_BASE = 'https://api.coingecko.com/api/v3'
+const MARKETS_URL = '/api/coingecko/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false'
 
+function marketChartUrl(coinId: string) {
+  return `/api/coingecko/coins/${coinId}/market-chart?vs_currency=usd&days=1`
+}
+
+function coinDetailsUrl(coinId: string) {
+  return `/api/coingecko/coins/${coinId}?localization=false&tickers=false&community_data=false&developer_data=false`
+}
+
+export default function Home() {
   const POLLING_INTERVAL = 30000
   const MAX_RETRIES = 3
   const CACHE_DURATION = 60000
   const DEFAULT_PAGE_SIZE = 50
   const STALE_DATA_THRESHOLD = 120000
-
-  console.log('API Key loaded:', API_KEY ? `${API_KEY.substring(0, 6)}...` : 'MISSING')
 
   const [coins, setCoins] = useState<any[]>([])
   const [allCoins, setAllCoins] = useState<any[]>([])
@@ -57,19 +62,14 @@ export default function Home() {
   // const [favorites, setFavorites] = useState<string[]>([])
   // const [isDarkMode, setIsDarkMode] = useState(false)
 
-  console.log('Component rendered', new Date().toISOString())
-  // console.log('Current coins count:', coins.length)
-
   useEffect(() => {
-    console.log('Fetching initial coins...')
     setLoading(true)
-    fetch(`${API_BASE}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&x_cg_demo_api_key=${API_KEY}`)
+    fetch(MARKETS_URL)
       .then(response => {
         if (!response.ok) throw new Error('API request failed')
         return response.json()
       })
       .then(data => {
-        console.log('Coins fetched:', data.length)
         // Transform CoinGecko data to match our structure
         const transformedData = data.map((coin: any, index: number) => ({
           id: coin.id,
@@ -117,13 +117,12 @@ export default function Home() {
         setError('Failed to fetch cryptocurrency data. Please try refreshing.')
         setLoading(false)
       })
-  }, [refreshTrigger, API_KEY, API_BASE])
+  }, [refreshTrigger])
 
   useEffect(() => {
-    console.log('Fetching Bitcoin chart data...')
     setChartLoading(true)
     setTimeout(() => {
-      fetch(`${API_BASE}/coins/bitcoin/market_chart?vs_currency=usd&days=1&x_cg_demo_api_key=${API_KEY}`)
+      fetch(marketChartUrl('bitcoin'))
         .then(response => response.json())
         .then(data => {
           const formattedData = data.prices.map((item: any) => ({
@@ -139,12 +138,11 @@ export default function Home() {
           setChartLoading(false)
         })
     }, 3000)
-  }, [API_KEY, API_BASE])
+  }, [])
 
   useEffect(() => {
-    console.log('Fetching Ethereum chart data...')
     setTimeout(() => {
-      fetch(`${API_BASE}/coins/ethereum/market_chart?vs_currency=usd&days=1&x_cg_demo_api_key=${API_KEY}`)
+      fetch(marketChartUrl('ethereum'))
         .then(response => response.json())
         .then(data => {
           const formattedData = data.prices.map((item: any) => ({
@@ -156,12 +154,11 @@ export default function Home() {
         })
         .catch(err => console.error('Error fetching Ethereum chart:', err))
     }, 6000)
-  }, [API_KEY, API_BASE])
+  }, [])
 
   useEffect(() => {
-    console.log('Fetching Cardano chart data...')
     setTimeout(() => {
-      fetch(`${API_BASE}/coins/cardano/market_chart?vs_currency=usd&days=1&x_cg_demo_api_key=${API_KEY}`)
+      fetch(marketChartUrl('cardano'))
         .then(response => response.json())
         .then(data => {
           const formattedData = data.prices.map((item: any) => ({
@@ -173,34 +170,22 @@ export default function Home() {
         })
         .catch(err => console.error('Error fetching Cardano chart:', err))
     }, 9000)
-  }, [API_KEY, API_BASE])
+  }, [])
 
   useEffect(() => {
-    console.log('Syncing search to localStorage:', searchTerm)
     localStorage.setItem('cryptoSearchTerm', searchTerm)
   }, [searchTerm])
-
-  // useEffect(() => {
-  //   const savedFavorites = localStorage.getItem('favoriteCrypto')
-  //   if (savedFavorites) {
-  //     setFavorites(JSON.parse(savedFavorites))
-  //   }
-  // }, [])
 
   useEffect(() => {
     const btc = coins.find(c => c.id === 'bitcoin')
     if (btc) {
       const price = parseFloat(btc.priceUsd).toFixed(2)
       document.title = `₿ $${price} | Crypto Dashboard`
-      console.log('Updated title:', document.title)
     }
   }, [coins])
 
   useEffect(() => {
-    const handleResize = () => {
-      setWindowWidth(window.innerWidth)
-      console.log('Window resized:', window.innerWidth)
-    }
+    const handleResize = () => setWindowWidth(window.innerWidth)
 
     window.addEventListener('resize', handleResize)
     handleResize()
@@ -238,7 +223,6 @@ export default function Home() {
   }
 
   const handleSearch = (term: string) => {
-    console.log('Searching for:', term)
     setSearchTerm(term)
 
     if (term === '') {
@@ -249,12 +233,10 @@ export default function Home() {
         coin.symbol.toLowerCase().includes(term.toLowerCase())
       )
       setCoins(filtered)
-      console.log('Filtered coins:', filtered.length)
     }
   }
 
   const handleSort = (field: string) => {
-    console.log('Sorting by:', field)
     if (sortBy === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
     } else {
@@ -292,10 +274,9 @@ export default function Home() {
   }
 
   const handleRefresh = () => {
-    console.log('Manual refresh triggered')
     setRefreshTrigger(prev => prev + 1)
 
-    fetch(`${API_BASE}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&x_cg_demo_api_key=${API_KEY}`)
+    fetch(MARKETS_URL)
       .then(response => response.json())
       .then(data => {
         const transformedData = data.map((coin: any, index: number) => ({
@@ -317,12 +298,11 @@ export default function Home() {
   }
 
   const handleCoinClick = (coin: any) => {
-    console.log('Coin clicked:', coin.id)
     setSelectedCoin(coin)
     setIsDialogOpen(true)
     setDetailsLoading(true)
 
-    fetch(`${API_BASE}/coins/${coin.id}?localization=false&tickers=false&community_data=false&developer_data=false&x_cg_demo_api_key=${API_KEY}`)
+    fetch(coinDetailsUrl(coin.id))
       .then(response => response.json())
       .then(data => {
         // Transform to match our structure
