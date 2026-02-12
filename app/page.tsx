@@ -40,8 +40,11 @@ import { Header } from "@/components/blocks/Header";
 import { MarketOverview } from "@/components/blocks/MarketOverview";
 import { formatLargeNumber, formatPercent, formatPrice } from "@/lib/format";
 import { TopMovers } from "@/components/blocks/TopMovers";
-import { ChartsSection, type CoinKey } from "@/components/blocks/ChartsSection";
-import { useCoinCharts } from "@/hooks/useCoinCharts";
+import { ChartsSection } from "@/components/blocks/ChartsSection";
+import { CoinKey, useCoinCharts } from "@/hooks/useCoinCharts";
+import { CoinsSection } from "@/components/blocks/Coins/CoinsSection";
+import { useMarkets } from "@/hooks/useMarkets";
+import { SortField } from "@/types/coin";
 
 const MARKETS_URL =
   "/api/coingecko/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false";
@@ -57,20 +60,12 @@ export default function Home() {
   const DEFAULT_PAGE_SIZE = 50;
   const STALE_DATA_THRESHOLD = 120000;
 
-  const [coins, setCoins] = useState<any[]>([]);
   const [allCoins, setAllCoins] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState("rank");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [selectedCoin, setSelectedCoin] = useState<any>(null);
 
   const COINS: CoinKey[] = ["bitcoin", "ethereum", "cardano"];
 
   const [timeRange, setTimeRange] = useState("24h");
-  const [topGainers, setTopGainers] = useState<any[]>([]);
-  const [topLosers, setTopLosers] = useState<any[]>([]);
   const [marketCap, setMarketCap] = useState(0);
   const [volume24h, setVolume24h] = useState(0);
   const [btcDominance, setBtcDominance] = useState(0);
@@ -85,67 +80,69 @@ export default function Home() {
   // const [isDarkMode, setIsDarkMode] = useState(false)
 
   const { charts, loadingByCoin, requestChart } = useCoinCharts();
+  const {
+    loading,
+    error,
+    coins,
+    coinsRaw,
+    topGainers,
+    topLosers,
+    marketOverview,
+    searchTerm,
+    sortBy,
+    sortOrder,
+    setSearchTerm,
+    setSortField,
+    toggleSortOrder,
+    refresh,
+  } = useMarkets();
 
-  useEffect(() => {
-    setLoading(true);
-    fetch(MARKETS_URL)
-      .then((response) => {
-        if (!response.ok) throw new Error("API request failed");
-        return response.json();
-      })
-      .then((data) => {
-        // Transform CoinGecko data to match our structure
-        const transformedData = data.map((coin: any, index: number) => ({
-          id: coin.id,
-          rank: (index + 1).toString(),
-          symbol: coin.symbol.toUpperCase(),
-          name: coin.name,
-          priceUsd: coin.current_price?.toString() || "0",
-          marketCapUsd: coin.market_cap?.toString() || "0",
-          volumeUsd24Hr: coin.total_volume?.toString() || "0",
-          changePercent24Hr:
-            coin.price_change_percentage_24h?.toString() || "0",
-          supply: coin.circulating_supply?.toString() || "0",
-          maxSupply: coin.max_supply?.toString() || null,
-          vwap24Hr: coin.current_price?.toString() || "0",
-        }));
+  // useEffect(() => {
+  //   let cancelled = false;
 
-        setCoins(transformedData);
-        setAllCoins(transformedData);
-        setLoading(false);
+  //   async function run() {
+  //     setLoading(true);
+  //     setError(null);
 
-        // Calculate market stats
-        let totalCap = 0;
-        let totalVolume = 0;
-        transformedData.forEach((coin: any) => {
-          totalCap += parseFloat(coin.marketCapUsd || 0);
-          totalVolume += parseFloat(coin.volumeUsd24Hr || 0);
-        });
-        setMarketCap(totalCap * 1.0347);
-        setVolume24h(totalVolume);
+  //     try {
+  //       const res = await fetch(MARKETS_URL);
+  //       if (!res.ok) throw new Error("API request failed");
+  //       const data = await res.json();
 
-        // Calculate BTC dominance
-        const btc = transformedData.find((c: any) => c.id === "bitcoin");
-        if (btc) {
-          const dominance = (parseFloat(btc.marketCapUsd) / totalCap) * 100;
-          setBtcDominance(dominance > 38.5 ? dominance : dominance * 0.98);
-        }
+  //       const transformed = data.map((coin: any, index: number) => ({
+  //         id: coin.id,
+  //         rank: String(index + 1),
+  //         symbol: String(coin.symbol).toUpperCase(),
+  //         name: coin.name,
+  //         priceUsd: String(coin.current_price ?? "0"),
+  //         marketCapUsd: String(coin.market_cap ?? "0"),
+  //         volumeUsd24Hr: String(coin.total_volume ?? "0"),
+  //         changePercent24Hr: String(coin.price_change_percentage_24h ?? "0"),
+  //         supply: String(coin.circulating_supply ?? "0"),
+  //         maxSupply: coin.max_supply ? String(coin.max_supply) : null,
+  //         vwap24Hr: String(coin.current_price ?? "0"),
+  //       }));
 
-        const sorted = [...transformedData].sort((a, b) => {
-          return (
-            parseFloat(b.changePercent24Hr || 0) -
-            parseFloat(a.changePercent24Hr || 0)
-          );
-        });
-        setTopGainers(sorted.slice(0, 5));
-        setTopLosers(sorted.slice(-5).reverse());
-      })
-      .catch((err) => {
-        console.error("Error fetching coins:", err);
-        setError("Failed to fetch cryptocurrency data. Please try refreshing.");
-        setLoading(false);
-      });
-  }, [refreshTrigger]);
+  //       if (!cancelled) {
+  //         setCoinsRaw(transformed); // ✅ only source-of-truth update
+  //       }
+  //     } catch (e) {
+  //       console.error(e);
+  //       if (!cancelled) {
+  //         setError(
+  //           "Failed to fetch cryptocurrency data. Please try refreshing."
+  //         );
+  //       }
+  //     } finally {
+  //       if (!cancelled) setLoading(false);
+  //     }
+  //   }
+
+  //   run();
+  //   return () => {
+  //     cancelled = true;
+  //   };
+  // }, [refreshToken]);
 
   useEffect(() => {
     localStorage.setItem("cryptoSearchTerm", searchTerm);
@@ -172,62 +169,6 @@ export default function Home() {
     if (!change) return "text-gray-500";
     const c = parseFloat(change);
     return c >= 0 ? "text-green-600" : "text-red-600";
-  };
-
-  const handleSearch = (term: string) => {
-    setSearchTerm(term);
-
-    if (term === "") {
-      setCoins(allCoins);
-    } else {
-      const filtered = allCoins.filter(
-        (coin) =>
-          coin.name.toLowerCase().includes(term.toLowerCase()) ||
-          coin.symbol.toLowerCase().includes(term.toLowerCase())
-      );
-      setCoins(filtered);
-    }
-  };
-
-  const handleSort = (field: string) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(field);
-      setSortOrder("asc");
-    }
-
-    const sorted = [...coins].sort((a, b) => {
-      let aVal, bVal;
-
-      if (field === "rank") {
-        aVal = parseInt(a.rank);
-        bVal = parseInt(b.rank);
-      } else if (field === "price") {
-        aVal = parseFloat(a.priceUsd || 0);
-        bVal = parseFloat(b.priceUsd || 0);
-      } else if (field === "change") {
-        aVal = parseFloat(a.changePercent24Hr || 0);
-        bVal = parseFloat(b.changePercent24Hr || 0);
-      } else if (field === "marketCap") {
-        aVal = parseFloat(a.marketCapUsd || 0);
-        bVal = parseFloat(b.marketCapUsd || 0);
-      } else {
-        return 0;
-      }
-
-      if (sortOrder === "asc") {
-        return aVal - bVal;
-      } else {
-        return bVal - aVal;
-      }
-    });
-
-    setCoins(sorted);
-  };
-
-  const handleRefresh = () => {
-    setRefreshTrigger((prev) => prev + 1);
   };
 
   const handleCoinClick = (coin: any) => {
@@ -324,15 +265,15 @@ export default function Home() {
         <Header
           title="Crypto Dashboard" // TODO: transaltion?
           subtitle="Real-time cryptocurrency market data" // // TODO: transaltion?
-          onRefresh={handleRefresh}
+          onRefresh={refresh}
           isRefreshing={loading}
         />
 
         <MarketOverview
-          marketCap={formatLargeNumber(marketCap)}
-          volume24h={formatLargeNumber(volume24h)}
-          btcDominance={`${btcDominance.toFixed(2)}%`}
-          coinsCount={coins.length}
+          marketCap={formatLargeNumber(marketOverview.marketCap)}
+          volume24h={formatLargeNumber(marketOverview.volume24h)}
+          btcDominance={`${marketOverview.btcDominance.toFixed(2)}%`}
+          coinsCount={coinsRaw.length}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -357,130 +298,16 @@ export default function Home() {
           onRequestChart={requestChart}
         />
 
-        {/* Search and Filter */}
-        <Card>
-          <CardHeader>
-            <CardTitle>All Cryptocurrencies</CardTitle>
-            <CardDescription>
-              Browse and search through the top 50 cryptocurrencies
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Search by name or symbol..."
-                  value={searchTerm}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Select
-                  value={sortBy}
-                  onValueChange={(value) => handleSort(value)}
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Sort by" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="rank">Rank</SelectItem>
-                    <SelectItem value="price">Price</SelectItem>
-                    <SelectItem value="change">24h Change</SelectItem>
-                    <SelectItem value="marketCap">Market Cap</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleSort(sortBy)}
-                >
-                  <ArrowUpDown className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Cryptocurrency Table */}
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[80px]">Rank</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Symbol</TableHead>
-                    <TableHead className="text-right">Price</TableHead>
-                    <TableHead className="text-right">24h Change</TableHead>
-                    <TableHead className="text-right">Market Cap</TableHead>
-                    <TableHead className="text-right">Volume (24h)</TableHead>
-                    <TableHead className="text-right">Supply</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {coins.slice(0, 50).map((coin: any) => (
-                    <TableRow
-                      key={coin.id}
-                      className="cursor-pointer hover:bg-slate-50 transition-colors"
-                      onClick={() => handleCoinClick(coin)}
-                    >
-                      <TableCell>
-                        <Badge variant="outline">{coin.rank}</Badge>
-                      </TableCell>
-                      <TableCell className="font-semibold">
-                        {coin.name}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{coin.symbol}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {coin.priceUsd ? formatPrice(coin.priceUsd) : "N/A"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {renderPriceChange(coin.changePercent24Hr)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {coin.marketCapUsd
-                          ? formatLargeNumber(coin.marketCapUsd)
-                          : "N/A"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {coin.volumeUsd24Hr
-                          ? formatLargeNumber(coin.volumeUsd24Hr)
-                          : "N/A"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {coin.supply
-                          ? `${parseFloat(coin.supply).toFixed(0)} ${
-                              coin.symbol
-                            }`
-                          : "N/A"}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCoinClick(coin);
-                          }}
-                        >
-                          View
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            {coins.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                No cryptocurrencies found matching &quot;{searchTerm}&quot;
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <CoinsSection
+          coins={coins}
+          searchTerm={searchTerm}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSearchTermChange={setSearchTerm}
+          onSortFieldChange={setSortField}
+          onToggleSortOrder={toggleSortOrder}
+          onCoinClick={handleCoinClick}
+        />
 
         {/* Selected Coin Details Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
