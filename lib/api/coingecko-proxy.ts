@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-const API_BASE = process.env.COINGECKO_API_BASE ?? "https://api.coingecko.com/api/v3";
+const API_BASE =
+  process.env.COINGECKO_API_BASE ?? "https://api.coingecko.com/api/v3";
 
 /**
  * Proxies a GET request to the CoinGecko API.

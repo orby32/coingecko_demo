@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 
@@ -8,14 +7,14 @@ type HeaderProps = {
   title: string;
   subtitle?: string;
   onRefresh: () => void;
-  isRefreshing?: boolean;
+  isLoading?: boolean;
 };
 
 export function Header({
   title,
   subtitle,
   onRefresh,
-  isRefreshing = false,
+  isLoading = false,
 }: HeaderProps) {
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -31,10 +30,10 @@ export function Header({
           onClick={onRefresh}
           variant="outline"
           size="sm"
-          disabled={isRefreshing}
+          disabled={isLoading}
         >
           <RefreshCw className="w-4 h-4 mr-2" />
-          {isRefreshing ? "Refreshing..." : "Refresh"}
+          {isLoading ? "Loading..." : "Refresh"}
         </Button>
       </div>
     </div>

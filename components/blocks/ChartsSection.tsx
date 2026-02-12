@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import {
   Card,
   CardContent,
@@ -11,24 +10,27 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PriceChart, PricePoint } from "./PriceChart";
 import { CoinKey } from "@/hooks/useCoinCharts";
+import { AlertDescription } from "../ui/alert";
+import { useEffect, useState } from "react";
 
 type ChartsSectionProps = {
   data: Record<CoinKey, PricePoint[]>;
   loadingByCoin: Record<CoinKey, boolean>;
   onRequestChart: (coin: CoinKey) => void;
+  error?: string;
   defaultCoin?: CoinKey;
 };
 
 export function ChartsSection({
   data,
   loadingByCoin,
+  error,
   onRequestChart,
   defaultCoin = "bitcoin",
 }: ChartsSectionProps) {
-  const [activeCoin, setActiveCoin] = React.useState<CoinKey>(defaultCoin);
+  const [activeCoin, setActiveCoin] = useState<CoinKey>(defaultCoin);
 
-  // Lazy-load the default tab on first render (or whenever default changes)
-  React.useEffect(() => {
+  useEffect(() => {
     const hasData = data[activeCoin]?.length > 0;
     const isLoading = loadingByCoin[activeCoin];
     if (!hasData && !isLoading) {
@@ -57,53 +59,57 @@ export function ChartsSection({
       </CardHeader>
 
       <CardContent>
-        <Tabs
-          value={activeCoin}
-          onValueChange={handleTabChange}
-          className="w-full"
-        >
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="bitcoin">Bitcoin</TabsTrigger>
-            <TabsTrigger value="ethereum">Ethereum</TabsTrigger>
-            <TabsTrigger value="cardano">Cardano</TabsTrigger>
-          </TabsList>
+        {error ? (
+          <AlertDescription>{error}</AlertDescription>
+        ) : (
+          <Tabs
+            value={activeCoin}
+            onValueChange={handleTabChange}
+            className="w-full"
+          >
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="bitcoin">Bitcoin</TabsTrigger>
+              <TabsTrigger value="ethereum">Ethereum</TabsTrigger>
+              <TabsTrigger value="cardano">Cardano</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="bitcoin">
-            {loadingByCoin.bitcoin ? (
-              <LoadingChart />
-            ) : (
-              <PriceChart
-                data={data.bitcoin}
-                gradientId="colorBtc"
-                stroke="#f7931a"
-              />
-            )}
-          </TabsContent>
+            <TabsContent value="bitcoin">
+              {loadingByCoin.bitcoin ? (
+                <LoadingChart />
+              ) : (
+                <PriceChart
+                  data={data.bitcoin}
+                  gradientId="colorBtc"
+                  stroke="#f7931a"
+                />
+              )}
+            </TabsContent>
 
-          <TabsContent value="ethereum">
-            {loadingByCoin.ethereum ? (
-              <LoadingChart />
-            ) : (
-              <PriceChart
-                data={data.ethereum}
-                gradientId="colorEth"
-                stroke="#627eea"
-              />
-            )}
-          </TabsContent>
+            <TabsContent value="ethereum">
+              {loadingByCoin.ethereum ? (
+                <LoadingChart />
+              ) : (
+                <PriceChart
+                  data={data.ethereum}
+                  gradientId="colorEth"
+                  stroke="#627eea"
+                />
+              )}
+            </TabsContent>
 
-          <TabsContent value="cardano">
-            {loadingByCoin.cardano ? (
-              <LoadingChart />
-            ) : (
-              <PriceChart
-                data={data.cardano}
-                gradientId="colorAda"
-                stroke="#0033ad"
-              />
-            )}
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="cardano">
+              {loadingByCoin.cardano ? (
+                <LoadingChart />
+              ) : (
+                <PriceChart
+                  data={data.cardano}
+                  gradientId="colorAda"
+                  stroke="#0033ad"
+                />
+              )}
+            </TabsContent>
+          </Tabs>
+        )}
       </CardContent>
     </Card>
   );

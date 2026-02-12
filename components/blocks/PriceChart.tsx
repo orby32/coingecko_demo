@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import {
   AreaChart,
   Area,
@@ -12,9 +11,9 @@ import {
 } from "recharts";
 
 export type PricePoint = {
-  time: string; // "13:00"
-  price: number; // 123.45
-  date?: string; // ISO, optional
+  time: string; 
+  price: number;
+  date?: string;
 };
 
 type PriceChartProps = {

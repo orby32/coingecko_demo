@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { sanitizeSearchInput } from "@/lib/sanitize";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -37,7 +38,10 @@ export function CoinsToolbar({
         <Input
           placeholder="Search by name or symbol..."
           value={searchTerm}
-          onChange={(e) => onSearchTermChange(e.target.value)}
+          onChange={(e) =>
+            onSearchTermChange(sanitizeSearchInput(e.target.value))
+          }
+          maxLength={10}
           className="pl-10"
         />
       </div>

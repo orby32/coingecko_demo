@@ -1,30 +1,15 @@
-// src/hooks/useMarkets.ts
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Coin } from "@/types/coin";
+import {
+  BTC_DOMINANCE_FLOOR,
+  BTC_DOMINANCE_UNDERFLOOR_FACTOR,
+  MARKET_CAP_ADJUSTMENT_FACTOR,
+} from "@/constants/metrics";
 
-export type SortBy = "rank" | "price" | "change" | "marketCap";
+type SortBy = "rank" | "price" | "change" | "marketCap";
 export type SortOrder = "asc" | "desc";
-
-export type Coin = {
-  id: string;
-  rank: string;
-  symbol: string;
-  name: string;
-  priceUsd: string;
-  marketCapUsd: string;
-  volumeUsd24Hr: string;
-  changePercent24Hr: string;
-  supply: string;
-  maxSupply: string | null;
-  vwap24Hr: string;
-};
-
-export type MarketOverviewData = {
-  marketCap: number;
-  volume24h: number;
-  btcDominance: number;
-};
 
 const MARKETS_URL =
   "/api/coingecko/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false";
@@ -40,7 +25,10 @@ function transformMarkets(data: any[]): Coin[] {
     volumeUsd24Hr: String(coin.total_volume ?? "0"),
     changePercent24Hr: String(coin.price_change_percentage_24h ?? "0"),
     supply: String(coin.circulating_supply ?? "0"),
-    maxSupply: coin.max_supply == null ? null : String(coin.max_supply),
+    maxSupply:
+      coin.max_supply === null || coin.max_supply === undefined
+        ? null
+        : String(coin.max_supply),
     vwap24Hr: String(coin.current_price ?? "0"),
   }));
 }
@@ -51,26 +39,19 @@ function num(v: unknown): number {
 }
 
 export function useMarkets() {
-  // source-of-truth data
   const [coinsRaw, setCoinsRaw] = useState<Coin[]>([]);
-
-  // request state
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // UI state (filtering/sorting)
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("rank");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
-
-  // refresh trigger owned by the hook
   const [refreshToken, setRefreshToken] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     setRefreshToken((x) => x + 1);
   }, []);
 
-  // intent-based sort setter (handles toggling + resetting order)
   const setSort = useCallback((field: SortBy) => {
     setSortBy((prev) => {
       if (prev === field) {
@@ -90,7 +71,6 @@ export function useMarkets() {
     setSortBy(field);
   }, []);
 
-  // fetch markets
   useEffect(() => {
     let cancelled = false;
 
@@ -104,7 +84,10 @@ export function useMarkets() {
         const data = await res.json();
 
         const transformed = transformMarkets(data);
-        if (!cancelled) setCoinsRaw(transformed);
+        if (!cancelled) {
+          setCoinsRaw(transformed);
+          setLastUpdated(new Date().toLocaleTimeString());
+        }
       } catch (e) {
         console.error(e);
         if (!cancelled)
@@ -121,7 +104,6 @@ export function useMarkets() {
     };
   }, [refreshToken]);
 
-  // derived list: filtered + sorted
   const coins = useMemo(() => {
     let result = coinsRaw;
 
@@ -163,7 +145,6 @@ export function useMarkets() {
     return sorted;
   }, [coinsRaw, searchTerm, sortBy, sortOrder]);
 
-  // derived: top movers (based on raw list, not filtered list)
   const topGainers = useMemo(() => {
     return [...coinsRaw]
       .sort((a, b) => num(b.changePercent24Hr) - num(a.changePercent24Hr))
@@ -176,9 +157,7 @@ export function useMarkets() {
       .slice(0, 5);
   }, [coinsRaw]);
 
-  // derived: market overview (based on raw list)
   const marketOverview = useMemo(() => {
-    // same as your totalCap/totalVolume loop
     let totalCap = 0;
     let totalVolume = 0;
 
@@ -187,38 +166,34 @@ export function useMarkets() {
       totalVolume += parseFloat(coin.volumeUsd24Hr || "0");
     }
 
-    const marketCap = totalCap * 1.0347;
+    const marketCap = totalCap * MARKET_CAP_ADJUSTMENT_FACTOR;
     const volume24h = totalVolume;
 
-    // same BTC dominance logic
     let btcDominance = 0;
     const btc = coinsRaw.find((c) => c.id === "bitcoin");
     if (btc && totalCap > 0) {
       const dominance = (parseFloat(btc.marketCapUsd || "0") / totalCap) * 100;
-      btcDominance = dominance > 38.5 ? dominance : dominance * 0.98;
+      btcDominance =
+        dominance > BTC_DOMINANCE_FLOOR
+          ? dominance
+          : dominance * BTC_DOMINANCE_UNDERFLOOR_FACTOR;
     }
 
     return { marketCap, volume24h, btcDominance };
   }, [coinsRaw]);
 
   return {
-    // request state
     loading,
     error,
-
-    // data
     coins,
     coinsRaw,
     topGainers,
     topLosers,
     marketOverview,
-
-    // ui state
+    lastUpdated,
     searchTerm,
     sortBy,
     sortOrder,
-
-    // commands
     refresh,
     setSearchTerm,
     setSort,

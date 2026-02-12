@@ -25,6 +25,8 @@ export function useCoinCharts() {
     cardano: false,
   });
 
+  const [error, setError] = useState<string | undefined>(undefined);
+
   const hasChartData = useCallback(
     (coin: CoinKey) => (charts[coin]?.length ?? 0) > 0,
     [charts]
@@ -53,7 +55,7 @@ export function useCoinCharts() {
         const json = await res.json();
 
         const formatted: PricePoint[] = (json.prices ?? []).map(
-          (item: any) => ({
+          (item: string) => ({
             time: new Date(item[0]).getHours() + ":00",
             price: item[1],
             date: new Date(item[0]).toISOString(),
@@ -63,6 +65,7 @@ export function useCoinCharts() {
         setCharts((p) => ({ ...p, [coin]: formatted }));
       } catch (e) {
         console.error(e);
+        setError("Failed to load chart data. Please try again later.");
       } finally {
         setLoadingByCoin((p) => ({ ...p, [coin]: false }));
       }
@@ -79,9 +82,10 @@ export function useCoinCharts() {
     () => ({
       charts,
       loadingByCoin,
+      error,
       requestChart,
       resetCharts,
     }),
-    [charts, loadingByCoin, requestChart, resetCharts]
+    [charts, loadingByCoin, requestChart, resetCharts, error]
   );
 }

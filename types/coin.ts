@@ -6,14 +6,11 @@ export interface Coin {
   rank: string;
   symbol: string;
   name: string;
-
   priceUsd: string;
   marketCapUsd: string;
   volumeUsd24Hr: string;
   changePercent24Hr: string;
-
   supply: string;
   maxSupply: string | null;
-
   vwap24Hr?: string;
 }
