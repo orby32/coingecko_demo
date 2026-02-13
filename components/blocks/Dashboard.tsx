@@ -52,10 +52,6 @@ export default function Dashboard() {
     refresh,
   } = useMarkets();
 
-  // useEffect(() => {
-  //   localStorage.setItem("cryptoSearchTerm", searchTerm);
-  // }, [searchTerm]);
-
   useEffect(() => {
     const btc = coins.find((c) => c.id === "bitcoin");
     if (btc) {

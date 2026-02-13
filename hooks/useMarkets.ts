@@ -52,17 +52,6 @@ export function useMarkets() {
     setRefreshToken((x) => x + 1);
   }, []);
 
-  const setSort = useCallback((field: SortBy) => {
-    setSortBy((prev) => {
-      if (prev === field) {
-        setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
-        return prev;
-      }
-      setSortOrder("asc");
-      return field;
-    });
-  }, []);
-
   const toggleSortOrder = useCallback(() => {
     setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
   }, []);
@@ -196,7 +185,6 @@ export function useMarkets() {
     sortOrder,
     refresh,
     setSearchTerm,
-    setSort,
     setSortField,
     toggleSortOrder,
   };

@@ -27,6 +27,7 @@ export function useCoinDetails(): UseCoinDetailsReturn {
   const abortRef = useRef<AbortController | null>(null);
 
   const openCoin = useCallback(async (coin: Coin) => {
+    setError(undefined);
     setSelectedCoin(coin);
     setIsDialogOpen(true);
     setDetailsLoading(true);
@@ -56,7 +57,7 @@ export function useCoinDetails(): UseCoinDetailsReturn {
         console.error("Error fetching coin details:", err);
       }
       setSelectedCoin(coin);
-      setError("Failed to load chart data. Please try again later.");
+      setError("Failed to load coin details. Please try again later.");
     } finally {
       setDetailsLoading(false);
     }
@@ -71,6 +72,7 @@ export function useCoinDetails(): UseCoinDetailsReturn {
     abortRef.current = null;
     setSelectedCoin(undefined);
     setDetailsLoading(false);
+    setError(undefined);
     setIsDialogOpen(false);
   }, []);
 

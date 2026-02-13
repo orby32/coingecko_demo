@@ -1,127 +1,53 @@
-- **API key security** – Move API key from `NEXT_PUBLIC_` to server-only to prevent exposure in the browser. Created `api/coingecko` proxy routes.
+## 🛠️ Key Changes & Refactoring (Changelog)
 
-- **Dedicated route per endpoint** – First implemented a single generic proxy (pass endpoint as query param), then switched to separate route files for each CoinGecko API used:
-  - `GET /api/coingecko/markets` → `coins/markets` (coin list, used on load + refresh)
-  - `GET /api/coingecko/coins/[id]/market-chart` → `coins/{id}/market_chart` (Bitcoin, Ethereum, Cardano charts)
-  - `GET /api/coingecko/coins/[id]` → `coins/{id}` (coin details on click)
+### 1. API Security & Infrastructure
+* **Server-Side Proxy:** Migrated all API keys from `NEXT_PUBLIC_` to server-only environment variables. Created dedicated `api/coingecko` proxy routes to prevent key exposure in the browser.
+* **Explicit Routing:** Implemented separate route files for each endpoint (`/markets`, `/coins/[id]`, `/market-chart`) rather than a generic pass-through.
+    * **Benefit:** Clear API surface and better security (no arbitrary path access).
+    * **Trade-off:** New features require new route files, but the predictability and maintainability outweigh the overhead for this scale.
 
-  **Trade-off:** Explicit per-endpoint routes give a clear API surface and better security (no arbitrary path access), but adding new CoinGecko features requires creating new route files instead of only changing the client. In our case of relatively small amount of endpoints, prefered the predictability and maintainability over make it generic.
+### 2. Component Architecture
+* **Focused Slicing:** Broke down the monolithic `page.tsx` into domain-specific components: `Header`, `MarketOverview`, `TopMovers`, `ChartsSection`, `Footer` and `CoinsSection`.
+* **Lazy-Loaded Charts:** Replaced global chart loading with a granular `loadingByCoin` state. Charts now request data via a callback (`onRequestChart`) only when needed.
+    * **Benefit:** Fewer initial API calls and a significantly better UX.
+* **Formatting Library:** Extracted logic into `lib/formatters.ts` to ensure consistent data presentation across the UI.
 
-- **Split `page.tsx` into focused components**
-  - Header, Footer, Market Overview, TopMovers, Charts, Table, Dialog.
-  - **Benefit:** smaller files, clearer responsibilities, easier maintenance.
-  - **Tradeoff:** more files/props to manage; navigation between files is slightly more overhead.
-
-- **Unified Top Gainers / Top Losers**
-  - Single reusable movers component with configurable title/icon/variant + data.
-
-- **Extracted reusable chart primitives**
-  - `PriceChart` (Recharts wrapper) + `ChartsSection` (tabs + layout).
-  - **Benefit:** consistent chart rendering, less repetition.
-
-- **Lazy-loaded charts with per-coin loading**
-  - Charts request data via callback (`onRequestChart`).
-  - Replaced global `chartLoading` with `loadingByCoin`.
-  - **Benefit:** fewer API calls, better UX, clearer state ownership.
-  - **Tradeoff:** slightly more complex control flow;
-
-- **`useCoinCharts` hook**
-  - Owns charts data, `loadingByCoin`, and guarded fetch logic (`hasData`/`isLoading`).
-  - **Benefit:** wrapper/page simplified; fetching logic isolated and reusable.
-  - **Tradeoff:** debugging sometimes requires jumping between component + hook; hook dependencies/closures need care.
-
-- **Moved formatting helpers to `lib`**
-  - `formatPrice`, `formatLargeNumber`, `formatPercent`, `getPriceColor`.
-  - **Benefit:** cleaner UI code, shared formatting logic.
-
-- **Refactored Markets data handling into `useMarkets`**
-
-- Moved **markets fetching**, **loading/error state**, and **refresh logic** into a dedicated `useMarkets` hook.
-- Removed direct data-fetching logic from `page.tsx`.
-
-**Benefits**
-
-- Clear data ownership (markets data lives in one place)
-- `page.tsx` is now mostly orchestration + layout
-- Easier to test and reason about markets logic
-
-**Trade-offs**
-
-- Slightly more indirection when tracing where data comes from
-- Requires discipline to not reintroduce data logic in the page
-
-- **Converted market stats to derived (computed) data**
-
-- Removed `marketCap`, `volume24h`, and `btcDominance` as local state.
-- Reimplemented them as a derived `marketOverview` object using `useMemo`.
-
-**Benefits**
-
-- No risk of state getting out of sync with the coins list
-- Fewer `setState` calls and side effects
-- Logic matches the mental model: “derived from markets”
-- Eliminates redundant state by treating derived values as computed data instead of stored state
-
-**Trade-offs**
-
-- Slight recomputation cost (acceptable for current dataset)
-- Logic must remain pure (no side effects inside `useMemo`)
+### 3. Logic & State Management (Custom Hooks)
+* **`useMarkets` Hook:** Centralized markets fetching, sorting, and refresh logic.
+* **`useCoinCharts` Hook:** Isolated chart-specific data fetching and guarded logic (`hasData`/`isLoading`).
+* **Derived Data Pattern:** Converted market stats (Market Cap, Volume, BTC Dominance) into derived data using `useMemo`.
+    * **Benefit:** Eliminates "out-of-sync" state bugs and reduces redundant `setState` calls.
+    * **Trade-off:** Small recomputation cost (negligible for this dataset size).
 
 ---
 
-- **Split Coins table into `CoinsSection`**
+## 🔍 Architectural Decisions & Trade-offs
 
-- Extracted **search**, **sorting**, and **table rendering** into a dedicated component.
-- `CoinsSection` receives data and handlers via props.
-
-**Benefits**
-
-- Page no longer mixes layout with table logic
-- Easier to evolve the table independently (pagination, virtualization, etc.)
-- Clear boundary between data source (`useMarkets`) and presentation
-
-**Trade-offs**
-
-- More props passed down
-- Requires a stable hook API to avoid frequent refactors
+* **Security Over Feature-Parity:** I prioritized moving API logic to the server-side first. A feature is only as good as its security; exposed keys are a critical business risk.
+* **Hook-Based Abstraction:** I moved logic into custom hooks. Even without a global store, this structure makes the UI "dumb" and ensures that migrating to a state management library in the future is a trivial task.
+* **Request Guarding:** I implemented a loading state lock on the refresh button to protect the API quota and prevent "race conditions" between concurrent fetches.
 
 ---
 
-### Removed obsolete handlers from `page.tsx`
+## 🚀 Production Roadmap & Future Improvements
 
-- Eliminated `handleSearch`, `handleSort`, and `handleRefresh` from the page.
-- All related logic is now owned by `useMarkets`.
+To respect the 4-hour window, I focused on structural integrity. In a full production cycle, I would prioritize the following:
 
-**Benefits**
+### 1. Robust Type Safety
+* **Zod Validation:** Implement runtime validation for API responses to ensure the app fails gracefully if the external API contract changes.
+* **Full TS Coverage:** Replace remaining `any` types with strict interfaces for all CoinGecko response objects.
 
-- Single source of truth for filtering and sorting behavior
-- Cleaner, more declarative page component
+### 2. Performance & Scalability
+* **Pagination/virtual scrolling:** Implement for the coin list to handle datasets larger than 100+ items efficiently.
+* **Debounced Refresh:** Add a 1-2 second debounce to the refresh trigger to prevent UI flickering during rapid interactions.
 
-**Trade-offs**
+### 3. Testing Suite
+* **Unit Tests:** Implement **Vitest** for the data-transformation logic in custom hooks.
+* **E2E Testing:** Use **Playwright** to test the critical "Refresh" flow and error-handling states.
 
-- Hook API becomes slightly larger
+### 4. UX & Persistence
+* **URL-Driven State:** Replace the uncompleted `localStorage` implementation for search with **URL Query Parameters** (`?search=btc&sort=price_desc`). This makes the dashboard state "shareable" and resilient to refreshes.
+* **Sparklines:** Add 7-day trend visualizations to the table rows for immediate market context.
 
----
-
-### Standardized sorting API
-
-- Replaced combined sort logic with explicit handlers:
-  - `setSortField`
-  - `toggleSortOrder`
-
-**Benefits**
-
-- More explicit intent
-- Easier to wire to UI controls
-
-**Trade-offs**
-
-- Two handlers instead of a single abstraction
-
----
-
-### Architecture Notes
-
-- Reinforced the pattern: **source-of-truth state in hooks, derived data via `useMemo`, UI as pure consumers**.
-- Removed unnecessary UI state from effects whose responsibility was data fetching.
-- Improved separation between data-fetching concerns and presentation components.
+### 5. Observability
+* **Error Monitoring:** Integrate **Sentry** to catch and track 429 (Rate Limit) errors and UI crashes in real-time.

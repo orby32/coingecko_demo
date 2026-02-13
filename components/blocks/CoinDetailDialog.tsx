@@ -36,7 +36,7 @@ export function CoinDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        {coin && !error ? (
+        {coin ? (
           <>
             <DialogHeader>
               <DialogTitle className="text-2xl">{coin.name}</DialogTitle>
@@ -44,6 +44,12 @@ export function CoinDetailDialog({
                 {coin.symbol} • Rank #{coin.rank}
               </DialogDescription>
             </DialogHeader>
+
+            {error && (
+              <AlertDescription className="mb-4 rounded-md bg-amber-50 p-3 text-amber-800">
+                VWAP may be unavailable. {error}
+              </AlertDescription>
+            )}
 
             {isLoading ? (
               <div className="space-y-4">
@@ -129,9 +135,9 @@ export function CoinDetailDialog({
               </>
             )}
           </>
-        ) : (
+        ) : error ? (
           <AlertDescription>{error}</AlertDescription>
-        )}
+        ) : null}
       </DialogContent>
     </Dialog>
   );
