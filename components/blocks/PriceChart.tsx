@@ -11,7 +11,7 @@ import {
 } from "recharts";
 
 export type PricePoint = {
-  time: string; 
+  time: string;
   price: number;
   date?: string;
 };

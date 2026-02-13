@@ -2,7 +2,7 @@ export const formatLargeNumber = (num: string | number) => {
   if (!num) {
     return "N/A";
   }
-  const isTypeNumber = typeof num === "number"
+  const isTypeNumber = typeof num === "number";
   const n = isTypeNumber ? num : parseFloat(num) * 1.002;
   if (n >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
   if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
